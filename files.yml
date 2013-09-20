@@ -1,0 +1,52 @@
+Posts.xml:
+  Id: integer
+  Title: varchar(512)
+  Body: text
+  Tags: varchar(512)
+  Score: integer
+  PostTypeId: integer
+  ParentId: integer
+  OwnerUserId: integer
+  OwnerDisplayName: varchar(64)
+  LastEditorUserId: integer
+  LastEditorDisplayName: varchar(64)
+  AcceptedAnswerId: integer
+  CreationDate: timestamp
+  LastEditDate: timestamp
+  LastActivityDate: timestamp
+  CommunityOwnedDate: timestamp
+  ClosedDate: timestamp
+  ViewCount: integer
+  AnswerCount: integer
+  CommentCount: integer
+  FavoriteCount: integer
+Comments.xml:
+  Id: integer
+  PostId: integer
+  UserId: integer
+  Text: text
+  CreationDate: timestamp
+  Score: integer
+  UserDisplayName: varchar(64)
+Users.xml:
+  Id: integer
+  Reputation: integer
+  CreationDate: timestamp
+  DisplayName: varchar(64)
+  LastAccessDate: timestamp
+  WebsiteUrl: varchar(1024)
+  ProfileImageUrl: varchar(1024)
+  Location: varchar(128)
+  AboutMe: text
+  Views: integer
+  UpVotes: integer
+  DownVotes: integer
+  EmailHash: varchar(64)
+  Age: integer
+Votes.xml:
+  Id: integer
+  PostId: integer
+  UserId: integer
+  VoteTypeId: integer
+  CreationDate: timestamp
+  BountyAmount: integer
