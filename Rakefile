@@ -5,6 +5,7 @@ require 'rubygems'
 require 'bundler/setup'
 
 require_relative 'importer'
+require_relative 'exporter'
 
 desc 'Imports XML files into the database'
 task :import do
@@ -52,6 +53,11 @@ task :mark_for_export do
   db.exec "UPDATE posts SET export = true WHERE ParentId IS NULL AND AcceptedAnswerId IS NOT NULL AND Tags LIKE '%#{tag}%'"
   puts "Total time marking #{tag} tagged questions: #{Time.now - start}"
   puts "\n"
+end
+
+task :export do
+  exporter = Exporter.new
+  exporter.export
 end
 
 task :default => [:import, :index, :mark_for_export]
