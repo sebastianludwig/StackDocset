@@ -20,6 +20,7 @@ Posts.xml:
   AnswerCount: integer
   CommentCount: integer
   FavoriteCount: integer
+  export: boolean
 Comments.xml:
   Id: integer
   PostId: integer

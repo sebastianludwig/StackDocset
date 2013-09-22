@@ -4,7 +4,11 @@ require 'yaml'
 require_relative 'database'
 
 class Importer
+  KEY_VALUE_PATTERN = /([\w]+)="([^"]*)"\s/
+  private_constant :KEY_VALUE_PATTERN
+  
   def initialize(options)
+    # TODO fail if neccessary options are not present
     @files = options[:files]
     @source_directory = options[:source_directory]
     @mode = (options[:mode] || :singlethreaded).to_sym
@@ -49,9 +53,8 @@ class Importer
   
     db.close
   end
-
+  
   def process_file(filename, columns)
-    key_value_pattern = /([\w]+)="([^"]*)"\s/     # TODO make this a private_constant, once it in a class http://stackoverflow.com/questions/2873903/how-to-i-make-private-class-constants-in-ruby
   
     puts "Processing #{filename}..."
   
@@ -68,7 +71,7 @@ class Importer
     
         col_values = columns.dup
     
-        line.scan(key_value_pattern) do |name, value|
+        line.scan(KEY_VALUE_PATTERN) do |name, value|
           raise "Unknown column #{name}" unless col_values.has_key? name
           col_values[name] = '"' + value + '"'
         end

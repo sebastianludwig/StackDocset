@@ -25,7 +25,7 @@ task :index do
   puts "------------"
   db = Database.new_connection
   indexes = {
-    'posts' => ['Id', 'ParentId', 'AcceptedAnswerId'],
+    'posts' => ['Id', 'ParentId', 'AcceptedAnswerId', 'export'],
     'comments' => ['Id', 'PostId']
   }
   indexes.each do |table, columns|
@@ -44,8 +44,10 @@ task :mark_for_export do
   puts "Marking"
   puts "------------"
   db = Database.new_connection
-  db.exec 'ALTER TABLE posts DROP COLUMN IF EXISTS export'
-  db.exec 'ALTER TABLE posts ADD COLUMN export boolean default false'
+  start = Time.now
+  puts "Resetting export flag..."
+  db.exec 'UPDATE posts SET export = false'
+  puts "Total time resetting export flag: #{Time.now - start}"
   
   tag = ENV['tag'] || 'ios'
   start = Time.now
@@ -56,8 +58,8 @@ task :mark_for_export do
 end
 
 task :export do
-  exporter = Exporter.new
+  exporter = Exporter.new name: 'bam'
   exporter.export
 end
 
-task :default => [:import, :index, :mark_for_export]
+task :default => [:import, :index, :mark_for_export, :export]

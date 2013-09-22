@@ -1,0 +1,27 @@
+!!!
+
+%head
+  %link{ rel: "stylesheet", type: "text/css", href: "style.css" }
+
+%h1= @question['title']
+
+%table.question
+  %tr
+    %td.score= @question['score']
+    %td.post{ id: @question['id'] }
+      = CGI.unescape_html @question['body'] if @question['body']
+      .comments
+        - @question['comments'].each do |comment|
+          %p{ id: comment['id'] }
+            = CGI.unescape_html comment['text'] if comment['text']
+%h1 Answers
+%table.answers
+  - @question['answers'].each do |answer|
+    %tr{ class: ('accepted' if answer['accepted']) }
+      %td.score= answer['score']
+      %td.post{ id: answer['id'] }
+        = CGI.unescape_html answer['body'] if answer['body']
+        .comments
+          - answer['comments'].each do |comment|
+            %p{ id: comment['id'] }
+              = CGI.unescape_html comment['text'] if comment['text']
