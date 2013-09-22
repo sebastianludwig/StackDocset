@@ -12,7 +12,7 @@ class Exporter
     @haml = Haml::Engine.new(File.read File.join('template', 'template.html.haml'))
   end
   
-  # TODO parallelize:
+  # TODO parallelize - be aware of multithreaded access to sqlite db
   #   query count, divide by 4, spawn processes
   #   batches = (0..3).map { |i| (i * (count / 4.0).ceil ... [(i+1) * (count / 4.0).ceil, count].min) }
   def export
@@ -24,6 +24,8 @@ class Exporter
     sqlite = SQLite3::Database.new(File.join(resources_directory, 'docSet.dsidx'))
     sqlite.execute "CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, type TEXT, path TEXT)"
     
+    sqlite_insert = sqlite.prepare "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, 'Guide', ?);"
+
     db = Database.new_connection
     
     db.transaction do
@@ -38,7 +40,7 @@ class Exporter
 
         row = batch.shift
             
-        export_question(row, db, sqlite) if row
+        export_question(row, db, sqlite_insert) if row
       end until row.nil?
       
       db.exec("CLOSE questions")
@@ -87,7 +89,7 @@ class Exporter
     @documents_directory ||= File.join resources_directory, 'Documents'
   end
   
-  def export_question(data, db, sqlite)
+  def export_question(data, db, insert_statement)
     data['answers'] = answers_for_question(data, db)
     data['comments'] = @export_comments ? comments_for_post(data, db) : []
     
@@ -96,8 +98,9 @@ class Exporter
     path = File.join documents_directory, filename
     File.open(path, 'w') { |file| file.write(output) }
     
-    # TODO be aware of multithreading access to sqlite db
-    sqlite.execute "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES ('#{data['title']}', 'Guide', '#{filename}');"
+    insert_statement.bind_params(CGI.unescape_html(data['title']), filename)
+    insert_statement.execute
+    insert_statement.reset!
   end
   
   def answers_for_question(question, db)
