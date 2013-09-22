@@ -1,0 +1,7 @@
+make it all rake-Tasks
+  - export (options: no-comments)
+
+TODOs
+
+check if column data types from browser are possible (varchar-lengths)
+index-page

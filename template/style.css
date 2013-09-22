@@ -108,3 +108,8 @@ blockquote {
   background-color: #EEE;
   padding: 1em;
 }
+
+code,
+pre {
+  font-family: monospace;
+}

@@ -7,12 +7,27 @@ require 'bundler/setup'
 require_relative 'importer'
 require_relative 'exporter'
 
+def source_directory
+  ENV['source'] || File.join(__dir__, 'data', 'stackoverflow.com')
+end
+
+def tag
+  ENV['tag'] || 'ios'
+end
+
+def docset_name
+  ENV['docset'] || "#{File.basename(source_directory)} #{tag}"
+end
+
+def output
+  docset_name.gsub(/\s/, '_')
+end
+
 desc 'Imports XML files into the database'
 task :import do
   puts "Importing"
   puts "------------"
   files = YAML::load_file(File.join(__dir__, 'files.yml'))
-  source_directory = ENV['source'] || File.join(__dir__, 'data', 'stackoverflow.com')
   mode = ENV['mode'] || :forked
   importer = Importer.new files: files, source_directory: source_directory, mode: mode
   importer.import
@@ -49,7 +64,6 @@ task :mark_for_export do
   db.exec 'UPDATE posts SET export = false'
   puts "Total time resetting export flag: #{Time.now - start}"
   
-  tag = ENV['tag'] || 'ios'
   start = Time.now
   puts "Marking questions with tag #{tag}..."
   db.exec "UPDATE posts SET export = true WHERE ParentId IS NULL AND AcceptedAnswerId IS NOT NULL AND Tags LIKE '%#{tag}%'"
@@ -58,7 +72,9 @@ task :mark_for_export do
 end
 
 task :export do
-  exporter = Exporter.new name: 'bam'
+  puts "Exporting"
+  puts "------------"
+  exporter = Exporter.new name: docset_name, output: output
   exporter.export
 end
 
