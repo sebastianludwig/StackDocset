@@ -11,13 +11,13 @@ class Exporter
     @mode = options[:mode]
     @batch_size = options[:batch_size] || 2
     @export_comments = options.has_key?(:export_comments) ? options[:export_comments] : true
-    @haml = Haml::Engine.new(File.read File.join('template', 'template.html.haml'))
+    @haml = Haml::Engine.new(File.read File.join(__dir__, 'template', 'template.html.haml'))
   end
   
   def export
     FileUtils.remove_entry_secure(output_directory, true)
     FileUtils.mkdir_p documents_directory
-    FileUtils.cp File.join('template', 'style.css'), documents_directory
+    FileUtils.cp File.join(__dir__, 'template', 'style.css'), documents_directory
     add_plist
     
     db = Database.new_connection
@@ -93,7 +93,7 @@ class Exporter
   end
   
   def add_plist
-    plist = ERB.new(File.read File.join('template', 'info.plist.erb')).result binding
+    plist = ERB.new(File.read File.join(__dir__, 'template', 'info.plist.erb')).result binding
     filename = File.join contents_directory, "info.plist"
     File.open(filename, 'w') { |file| file.write(plist) }
   end

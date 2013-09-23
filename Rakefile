@@ -4,8 +4,8 @@
 require 'rubygems'
 require 'bundler/setup'
 
-require_relative 'importer'
-require_relative 'exporter'
+require_relative 'lib/importer'
+require_relative 'lib/exporter'
 
 def source_directory
   ENV['source'] || File.join(__dir__, 'data', 'stackoverflow.com')
@@ -31,7 +31,7 @@ desc 'Imports XML files into the database'
 task :import do
   puts "Importing"
   puts "------------"
-  files = YAML::load_file(File.join(__dir__, 'files.yml'))
+  files = YAML::load_file(File.join(__dir__, 'config', 'files.yml'))
   importer = Importer.new files: files, source_directory: source_directory, mode: mode
   importer.import
   puts "\n"
