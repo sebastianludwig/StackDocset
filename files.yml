@@ -29,25 +29,25 @@ Comments.xml:
   CreationDate: timestamp
   Score: integer
   UserDisplayName: varchar(64)
-Users.xml:
-  Id: integer
-  Reputation: integer
-  CreationDate: timestamp
-  DisplayName: varchar(64)
-  LastAccessDate: timestamp
-  WebsiteUrl: varchar(1024)
-  ProfileImageUrl: varchar(1024)
-  Location: varchar(128)
-  AboutMe: text
-  Views: integer
-  UpVotes: integer
-  DownVotes: integer
-  EmailHash: varchar(64)
-  Age: integer
-Votes.xml:
-  Id: integer
-  PostId: integer
-  UserId: integer
-  VoteTypeId: integer
-  CreationDate: timestamp
-  BountyAmount: integer
+# Users.xml:
+#   Id: integer
+#   Reputation: integer
+#   CreationDate: timestamp
+#   DisplayName: varchar(64)
+#   LastAccessDate: timestamp
+#   WebsiteUrl: varchar(1024)
+#   ProfileImageUrl: varchar(1024)
+#   Location: varchar(128)
+#   AboutMe: text
+#   Views: integer
+#   UpVotes: integer
+#   DownVotes: integer
+#   EmailHash: varchar(64)
+#   Age: integer
+# Votes.xml:
+#   Id: integer
+#   PostId: integer
+#   UserId: integer
+#   VoteTypeId: integer
+#   CreationDate: timestamp
+#   BountyAmount: integer
