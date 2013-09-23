@@ -2,20 +2,18 @@ require 'haml'
 require 'erb'
 require 'sqlite3'
 require_relative 'database'
+require_relative 'executor'
 
 class Exporter
   def initialize(options = {})
     @docset_name = options[:name]    # TODO raise error if option is missing
     @output = options[:output]
+    @mode = options[:mode]
     @batch_size = options[:batch_size] || 2
     @export_comments = options.has_key?(:export_comments) ? options[:export_comments] : true
     @haml = Haml::Engine.new(File.read File.join('template', 'template.html.haml'))
   end
   
-  # TODO parallelize
-  #   pump it into postgres table first, after finish, copy to sqlite (singlethreaded)
-  #   query count, divide by 4, spawn processes
-  #   batches = (0..3).map { |i| (i * (count / 4.0).ceil ... [(i+1) * (count / 4.0).ceil, count].min) }
   def export
     FileUtils.remove_entry_secure(output_directory, true)
     FileUtils.mkdir_p documents_directory
@@ -25,9 +23,19 @@ class Exporter
     db = Database.new_connection
     db.exec "DROP TABLE IF EXISTS searchIndex"
     db.exec "CREATE TABLE searchIndex(name TEXT, path TEXT)"
+    
+    count = db.query("SELECT COUNT(*) FROM posts WHERE export = true").getvalue(0,0).to_i
+    
     db.close
     
-    export_range 1..2
+    batches = (0..3).map { |i| (i * (count / 4.0).ceil .. [(i+1) * (count / 4.0).ceil, count].min) }
+    
+    tasks = batches.map do |batch|
+      Proc.new { export_range(batch) }
+    end
+    
+    executor = Executor.new @mode, tasks
+    executor.execute
         
     copy_to_sqlite
     
@@ -59,18 +67,25 @@ class Exporter
   end
   
   def export_range(range)
+    puts "Exporting range #{range}..."
+    
+    start = Time.new
+    
     db = Database.new_connection
     db.prepare 'insert_statement', "INSERT INTO searchIndex(name, path) VALUES ($1, $2);"
     
     db.transaction do
-      db.exec("DECLARE questions CURSOR FOR SELECT * FROM posts WHERE export = true")
+      db.exec("DECLARE questions CURSOR FOR SELECT * FROM posts WHERE export = true LIMIT #{range.max - range.min} OFFSET #{range.min}")
       
       fetch_in_batches('questions', @batch_size, db) { |row, db| export_question(row, 'insert_statement', db) }
       
       db.exec("CLOSE questions")
     end
+    
+    puts "Total time exporting range #{range}: #{Time.now - start} s"
+    
   ensure
-    db.close
+    db.close if db
   end
   
   def docset_name
@@ -127,9 +142,15 @@ class Exporter
   end
   
   def copy_to_sqlite
-    sqlite = SQLite3::Database.new(File.join(resources_directory, 'docSet.dsidx'))
+    sqlite_path = File.join(resources_directory, 'docSet.dsidx')
+    FileUtils.remove_entry_secure sqlite_path, true
+    sqlite = SQLite3::Database.new(sqlite_path)
     sqlite.execute "CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, type TEXT, path TEXT)"
     insert = sqlite.prepare "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, 'Guide', ?);"
+    
+    puts "Copying docset database..."
+    
+    start = Time.new
     
     db = Database.new_connection
     begin
@@ -148,13 +169,15 @@ class Exporter
       db.close
     end
     
+    puts "Total time copying docset database: #{Time.now - start} s"
+    
     start = Time.new
     puts "Adding index to docset database..."
     sqlite.execute "CREATE UNIQUE INDEX anchor ON searchIndex (name, type, path);"
     puts "Total adding index to docset database: #{Time.now - start}"
     
   ensure
-    insert.close
-    sqlite.close
+    insert.close if insert
+    sqlite.close if sqlite
   end
 end

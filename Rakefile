@@ -11,6 +11,10 @@ def source_directory
   ENV['source'] || File.join(__dir__, 'data', 'stackoverflow.com')
 end
 
+def mode
+  (ENV['mode'] || :forked).to_sym
+end
+
 def tag
   ENV['tag'] || 'ios'
 end
@@ -28,7 +32,6 @@ task :import do
   puts "Importing"
   puts "------------"
   files = YAML::load_file(File.join(__dir__, 'files.yml'))
-  mode = ENV['mode'] || :forked
   importer = Importer.new files: files, source_directory: source_directory, mode: mode
   importer.import
   puts "\n"
@@ -74,7 +77,7 @@ end
 task :export do
   puts "Exporting"
   puts "------------"
-  exporter = Exporter.new name: docset_name, output: output
+  exporter = Exporter.new name: docset_name, output: output, mode: mode
   exporter.export
 end
 

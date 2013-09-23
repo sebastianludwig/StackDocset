@@ -2,6 +2,7 @@ require 'pg'
 require 'cgi'
 require 'yaml'
 require_relative 'database'
+require_relative 'executor'
 
 class Importer
   KEY_VALUE_PATTERN = /([\w]+)="([^"]*)"\s/
@@ -21,11 +22,12 @@ class Importer
       # set values to nil
       @files.each { |filename, columns| @files[filename] = columns.merge!(columns) { nil } }
 
-      case @mode
-      when :forked then process_forked(@files)
-      when :multithreaded then process_multithreaded(@files)
-      else process_singlethreaded(@files)
+      tasks = @files.map do |filename, columns|
+        Proc.new { process_file(filename, columns) }
       end
+      
+      executor = Executor.new @mode, tasks
+      executor.execute
     end
   end
   
@@ -89,30 +91,5 @@ class Importer
     puts "Total time for loading #{output_filename}: #{Time.now - start} s"
   
     db.close
-  end
-
-  def process_forked(files)
-    pids = []
-    files.each do |filename, columns|
-      pids << Process.fork { process_file(filename, columns) }
-    end
-
-    pids.each { |pid| Process.wait pid }
-  end
-
-  def process_multithreaded(files)
-    threads = []
-
-    files.each do |filename, columns|
-      threads << Thread.new { process_file(filename, columns) }
-    end
-
-    threads.each { |t| t.join }  
-  end
-
-  def process_singlethreaded(files)
-    files.each do |filename, columns|
-      process_file(filename, columns)
-    end  
   end
 end
