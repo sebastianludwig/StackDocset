@@ -12,7 +12,8 @@ class Exporter
     @haml = Haml::Engine.new(File.read File.join('template', 'template.html.haml'))
   end
   
-  # TODO parallelize - be aware of multithreaded access to sqlite db
+  # TODO parallelize
+  #   pump it into postgres table first, after finish, copy to sqlite (singlethreaded)
   #   query count, divide by 4, spawn processes
   #   batches = (0..3).map { |i| (i * (count / 4.0).ceil ... [(i+1) * (count / 4.0).ceil, count].min) }
   def export
@@ -21,35 +22,14 @@ class Exporter
     FileUtils.cp File.join('template', 'style.css'), documents_directory
     add_plist
     
-    sqlite = SQLite3::Database.new(File.join(resources_directory, 'docSet.dsidx'))
-    sqlite.execute "CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, type TEXT, path TEXT)"
-    
-    sqlite_insert = sqlite.prepare "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, 'Guide', ?);"
-
     db = Database.new_connection
+    db.exec "DROP TABLE IF EXISTS searchIndex"
+    db.exec "CREATE TABLE searchIndex(name TEXT, path TEXT)"
+    db.close
     
-    db.transaction do
-      db.exec("DECLARE questions CURSOR FOR SELECT * FROM posts WHERE export = true")
-      batch = []
-      
-      begin
-        if batch.size == 0
-          result = db.exec("FETCH #{@batch_size} FROM questions")
-          batch = result.collect { |row| row }
-        end
-
-        row = batch.shift
-            
-        export_question(row, db, sqlite_insert) if row
-      end until row.nil?
-      
-      db.exec("CLOSE questions")
-    end
-    
-    start = Time.new
-    puts "Adding index to docset database..."
-    sqlite.execute "CREATE UNIQUE INDEX anchor ON searchIndex (name, type, path);"
-    puts "Total adding index to docset database: #{Time.now - start}"
+    export_range 1..2
+        
+    copy_to_sqlite
     
     # TODO check if the simple form performs just as good
     # res  = conn.exec('select tablename, tableowner from pg_tables')
@@ -63,6 +43,36 @@ class Exporter
   
   private
   
+  def fetch_in_batches(cursor_name, batch_size, db)
+    batch = []
+    
+    begin
+      if batch.size == 0
+        result = db.exec("FETCH #{batch_size} FROM #{cursor_name}")
+        batch = result.collect { |row| row }
+      end
+
+      row = batch.shift
+      
+      yield row, db if row
+    end until row.nil?
+  end
+  
+  def export_range(range)
+    db = Database.new_connection
+    db.prepare 'insert_statement', "INSERT INTO searchIndex(name, path) VALUES ($1, $2);"
+    
+    db.transaction do
+      db.exec("DECLARE questions CURSOR FOR SELECT * FROM posts WHERE export = true")
+      
+      fetch_in_batches('questions', @batch_size, db) { |row, db| export_question(row, 'insert_statement', db) }
+      
+      db.exec("CLOSE questions")
+    end
+  ensure
+    db.close
+  end
+  
   def docset_name
     @docset_name
   end
@@ -74,7 +84,7 @@ class Exporter
   end
   
   def output_directory
-    @output_directory ||= "#{@output}_docset"
+    @output_directory ||= "#{@output}_docset"   # TODO change to .docset
   end
   
   def contents_directory
@@ -89,7 +99,7 @@ class Exporter
     @documents_directory ||= File.join resources_directory, 'Documents'
   end
   
-  def export_question(data, db, insert_statement)
+  def export_question(data, insert_statement_name, db)
     data['answers'] = answers_for_question(data, db)
     data['comments'] = @export_comments ? comments_for_post(data, db) : []
     
@@ -98,9 +108,7 @@ class Exporter
     path = File.join documents_directory, filename
     File.open(path, 'w') { |file| file.write(output) }
     
-    insert_statement.bind_params(CGI.unescape_html(data['title']), filename)
-    insert_statement.execute
-    insert_statement.reset!
+    db.exec_prepared insert_statement_name, [CGI.unescape_html(data['title']), filename]
   end
   
   def answers_for_question(question, db)
@@ -116,5 +124,37 @@ class Exporter
   def comments_for_post(post, db)
     result = db.query "SELECT * FROM comments WHERE PostId = #{post['id']} ORDER BY score DESC NULLS LAST, creationdate ASC"
     result.map { |row| row }
+  end
+  
+  def copy_to_sqlite
+    sqlite = SQLite3::Database.new(File.join(resources_directory, 'docSet.dsidx'))
+    sqlite.execute "CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, type TEXT, path TEXT)"
+    insert = sqlite.prepare "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, 'Guide', ?);"
+    
+    db = Database.new_connection
+    begin
+      db.transaction do
+        db.exec("DECLARE export CURSOR FOR SELECT * FROM searchIndex")
+      
+        fetch_in_batches('export', @batch_size, db) do |row, db| 
+          insert.bind_params(row['name'], row['path'])
+          insert.execute
+          insert.reset!
+        end
+      
+        db.exec("CLOSE export")
+      end
+    ensure
+      db.close
+    end
+    
+    start = Time.new
+    puts "Adding index to docset database..."
+    sqlite.execute "CREATE UNIQUE INDEX anchor ON searchIndex (name, type, path);"
+    puts "Total adding index to docset database: #{Time.now - start}"
+    
+  ensure
+    insert.close
+    sqlite.close
   end
 end

@@ -1,0 +1,17 @@
+Usage
+
+1. Download the latest StackExchange data dump << LINK >>
+2. run rake
+
+Rake tasks
+
+- import
+  options:
+- index
+- mark_for_export
+  options:
+- export
+  options:
+
+Attention
+Xcode crashes when trying to open the docset. This seems to be << a >> << common >> << error >>, and I didn't really care. Usage in Dash works just fine.
