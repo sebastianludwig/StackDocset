@@ -4,5 +4,5 @@ make it all rake-Tasks
 - TODOs
 - check if column data types from browser are possible (varchar-lengths)
 - index-page
-- move files into subdirectory to clean up the uppermost level
 - secure .close calls by ensure
+- create database? (if not exists - check before connect?)

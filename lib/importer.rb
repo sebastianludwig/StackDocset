@@ -88,7 +88,7 @@ class Importer
     columns = columns.keys.join(',')
     sql = "COPY #{table_name(filename)} (#{columns}) FROM '#{File.absolute_path(output_filename)}' WITH csv"
     db.exec sql
-    puts "Total time for loading #{output_filename}: #{Time.now - start} s"
+    puts "Total time loading #{output_filename}: #{Time.now - start} s"
   
     db.close
   end

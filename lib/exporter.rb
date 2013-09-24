@@ -99,7 +99,7 @@ class Exporter
   end
   
   def output_directory
-    @output_directory ||= "#{@output}_docset"   # TODO change to .docset
+    @output_directory ||= "#{@output}.docset"
   end
   
   def contents_directory
